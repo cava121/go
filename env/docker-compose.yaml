@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:14.18
+    environment:
+      POSTGRES_DB: go
+      POSTGRES_USER: akorobkin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api-server:
+    image: golang:1.26.2
+    volumes:
+      - ../:/go/app
+      - go_modules:/go/pkg/mod
+    working_dir: /go/app
+    ports:
+      - "8090:8090"
+    command: go run -ldflags "-X main.gitCommit=${GIT_COMMIT}" ./cmd/api-server
+    environment:
+      - API_SERVER_DB_URL=postgres://akorobkin:password@postgres:5432/go?sslmode=disable
+      - GOMODCACHE=/go/pkg/mod
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+  go_modules:

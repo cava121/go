@@ -1,0 +1,5 @@
+FROM postgres:17.9-alpine
+
+ENV POSTGRES_DB=go
+ENV POSTGRES_USER=akorobkin
+ENV POSTGRES_PASSWORD=password
