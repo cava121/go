@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
+	"curs/cmd/api-server/internal/app"
+	"curs/cmd/api-server/internal/store"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -25,22 +26,24 @@ func main() {
 	}
 	defer conn.Close(context.Background())
 
+	store := store.New(conn)
+	app := app.New(store)
+
     http.HandleFunc("GET /debug/info", getConfig)
-	http.HandleFunc("POST /v1/lists", handleCreateList(conn))
-	http.HandleFunc("GET /v1/lists/{id}", handleGetList(conn))
+	http.HandleFunc("POST /v1/lists", handleCreateList(app))
+	http.HandleFunc("GET /v1/lists/{id}", handleGetList(app))
 
 	fmt.Println("Сервер запущен")
     http.ListenAndServe(":8090", nil)
 }
 
-func handleGetList(conn *pgx.Conn) http.HandlerFunc {
+func handleGetList(a *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var name string;
-
 		id := r.PathValue("id")
 
-		if err := conn.QueryRow(r.Context(), `SELECT name FROM lists WHERE id = $1`, id).Scan(&name); err != nil {
-			fmt.Println(err);
+		result, err := a.GetList(r.Context(), id);
+		if err != nil {
+
 		}
 
 		var resp struct {
@@ -50,16 +53,15 @@ func handleGetList(conn *pgx.Conn) http.HandlerFunc {
 			} `json:"list"`
 		}
 
-		resp.List.Id = id
-		resp.List.Name = name
+		resp.List.Id = result.Id
+		resp.List.Name = result.Name
 
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			// how to handle this error?
 		}
 	}
 }
 
-func handleCreateList(conn *pgx.Conn) http.HandlerFunc {
+func handleCreateList(a *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Name string `json:"name"`
@@ -76,12 +78,10 @@ func handleCreateList(conn *pgx.Conn) http.HandlerFunc {
 			return
 		}
 
-		listID := uuid.NewString();
-		if _, err := conn.Exec(r.Context(), `INSERT INTO lists(id, name) VALUES($1, $2)`, listID, req.Name); err != nil {
-			fmt.Println(err);
-			slog.Error("failed create list in db", slog.String("err", err.Error()))
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
+		list, err := a.CreateList(r.Context(), req.Name)
+
+		if err != nil {
+			// TODO
 		}
 
 		var resp struct {
@@ -91,7 +91,7 @@ func handleCreateList(conn *pgx.Conn) http.HandlerFunc {
 			} `json:"list"`
 		}
 
-		resp.List.ID = listID
+		resp.List.ID = list.Id
 		resp.List.Name = req.Name
 
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
