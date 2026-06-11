@@ -29,21 +29,37 @@ func main() {
 	store := store.New(conn)
 	app := app.New(store)
 
-    http.HandleFunc("GET /debug/info", getConfig)
+	http.HandleFunc("GET /debug/info", getConfig)
 	http.HandleFunc("POST /v1/lists", handleCreateList(app))
-	http.HandleFunc("GET /v1/lists/{id}", handleGetList(app))
+	http.HandleFunc("GET /v1/lists/{id}", handleGetListById(app))
+	http.HandleFunc("GET /v1/lists", handleGetLists(app))
+	http.HandleFunc("OPTIONS /{path...}", handleOptions)
 
 	fmt.Println("Сервер запущен")
-    http.ListenAndServe(":8090", nil)
+	http.ListenAndServe(":8090", corsMiddleware(http.DefaultServeMux))
 }
 
-func handleGetList(a *app.App) http.HandlerFunc {
+func handleGetLists(a *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
+		res, err := a.GetLists(r.Context())
 
-		result, err := a.GetList(r.Context(), id);
 		if err != nil {
 
+		}
+
+		if err := json.NewEncoder(w).Encode(res); err != nil {
+		}
+	}
+}
+
+func handleGetListById(a *app.App) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		fmt.Println(id)
+
+		result, err := a.GetListById(r.Context(), id);
+		fmt.Println(result)
+		if err != nil {
 		}
 
 		var resp struct {
@@ -98,6 +114,23 @@ func handleCreateList(a *app.App) http.HandlerFunc {
 			// how to handle this error?
 		}
 	}
+}
+
+func handleOptions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func getConfig(w http.ResponseWriter, req *http.Request) {

@@ -1,4 +1,11 @@
 services:
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "15672:15672"
+
   postgres:
     image: postgres:14.18
     environment:
@@ -28,3 +35,4 @@ services:
 volumes:
   postgres_data:
   go_modules:
+  rabbitmq_data:

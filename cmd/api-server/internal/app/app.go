@@ -8,8 +8,9 @@ import (
 )
 
 type store interface {
-	GetList(context context.Context, listId string) (models.List, error)
-	CreateList(context context.Context, list models.List) (error)
+	GetListById(context context.Context, listId string) (models.List, error)
+	CreateList(context context.Context, list models.List) error
+	GetLists(context context.Context) ([]models.List, error)
 }
 
 type App struct {
@@ -20,8 +21,12 @@ func New(store store) *App {
 	return &App{store: store}
 }
 
-func (a *App) GetList(context context.Context, listId string) (models.List, error) {
-	return a.GetList(context, listId)
+func (a *App) GetLists(context context.Context) ([]models.List, error) {
+	return a.store.GetLists(context)
+}
+
+func (a *App) GetListById(context context.Context, listId string) (models.List, error) {
+	return a.store.GetListById(context, listId)
 }
 
 func (a *App) CreateList(context context.Context, listName string) (models.List, error) {
